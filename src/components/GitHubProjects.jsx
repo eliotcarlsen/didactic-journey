@@ -14,11 +14,28 @@ function GitHubProjects() {
           throw new Error('Failed to fetch projects');
         }
         const data = await response.json();
-        // Filter out forked repositories and sort by stars
-        const filteredProjects = data
-          .filter(repo => !repo.fork)
-          .sort((a, b) => b.stargazers_count - a.stargazers_count);
-        setProjects(filteredProjects);
+        // Filter out forked repositories
+        const filteredProjects = data.filter(repo => !repo.fork);
+        
+        // Fetch languages for each project
+        const projectsWithLanguages = await Promise.all(
+          filteredProjects.map(async (repo) => {
+            const languagesResponse = await fetch(repo.languages_url);
+            if (languagesResponse.ok) {
+              const languagesData = await languagesResponse.json();
+              return {
+                ...repo,
+                languages: Object.keys(languagesData)
+              };
+            }
+            return {
+              ...repo,
+              languages: []
+            };
+          })
+        );
+
+        setProjects(projectsWithLanguages);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -47,10 +64,13 @@ function GitHubProjects() {
               {project.description || 'No description available'}
             </p>
             <div className="project-tech">
-              {project.language && (
-                <span className="tech-tag">{project.language}</span>
+              {project.languages && project.languages.length > 0 ? (
+                project.languages.map((language, index) => (
+                  <span key={index} className="tech-tag">{language}</span>
+                ))
+              ) : (
+                <span className="tech-tag">No languages specified</span>
               )}
-              <span className="tech-tag">Stars: {project.stargazers_count}</span>
             </div>
             <div className="project-links">
               <a 
